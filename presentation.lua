@@ -37,6 +37,25 @@ function conditionallySwapWave(pose)
     return pose
 end
 
+-- Makes use of myo.getXDirection() to swap the angle when the armband is being worn with the x-axis
+-- facing the elbow. This allows us to use the same sign comparisons when using the angle, not matter
+-- which way it is being worn.
+function conditionallySwapAngle(angle)
+    if myo.getXDirection() == "towardWrist" then
+        return angle * -1
+    end
+    return angle
+end
+
+-- Adjusts which angle direction is considered 'faster' based on which way we are scrolling, which is
+-- determined from the pose.
+function getPoseMultiplier(pose)
+    if pose == "waveIn" then
+        return -1
+    end
+    return 1
+end
+
 -- Unlock mechanism
 
 function unlock()
@@ -51,6 +70,7 @@ end
 -- Implement Callbacks
 
 function onPoseEdge(pose, edge)
+    currentPoseEdge = {pose, edge}
     -- Unlock
     if pose == "thumbToPinky" then
         if edge == "off" then
@@ -68,6 +88,7 @@ function onPoseEdge(pose, edge)
     -- Forward/backward and shuttle.
     if pose == "waveIn" or pose == "waveOut" then
         local now = myo.getTimeMilliseconds()
+        initialPoseAngle = conditionallySwapAngle(myo.getRoll())
 
         if unlocked and edge == "on" then
             -- Deal with direction and arm.
@@ -108,6 +129,12 @@ SHUTTLE_CONTINUOUS_TIMEOUT = 600
 -- How often to trigger shuttle behaviour
 SHUTTLE_CONTINUOUS_PERIOD = 300
 
+-- Delta we use to change the shuttle speed based on Roll (angle w/respect to x-axis)
+SHUTTLE_SPEED_DELTA = 20
+
+-- A global variable used by functions other than onPoseEdge to identify the current pose
+currentPoseEdge = {nil, nil}
+
 function onPeriodic()
     local now = myo.getTimeMilliseconds()
 
@@ -115,13 +142,17 @@ function onPeriodic()
     if shuttleTimeout then
         extendUnlock()
 
+        -- Changed radians to degrees just for my own comfort.
+        angleDelta = 180 * (conditionallySwapAngle(myo.getRoll()) - initialPoseAngle) / math.pi
+
         -- If we haven't done a shuttle burst since the timeout, do one now
         if (now - shuttleSince) > shuttleTimeout then
+
             --  Perform a shuttle burst
             shuttleBurst()
 
             -- Update the timeout. (The first time it will be the longer delay.)
-            shuttleTimeout = SHUTTLE_CONTINUOUS_PERIOD
+            shuttleTimeout = SHUTTLE_CONTINUOUS_PERIOD + getPoseMultiplier(currentPoseEdge[1]) * angleDelta * SHUTTLE_SPEED_DELTA
 
             -- Update when we did the last shuttle burst
             shuttleSince = now
@@ -152,6 +183,14 @@ function onForegroundWindowChange(app, title)
             -- Powerpoint on MacOS
             wantActive = true
             activeApp = "Powerpoint"
+        elseif app == "com.adobe.Reader" then
+            -- Adobe Reader on MacOS
+            wantActive = true
+            activeApp = "Adobe Reader"
+        elseif app == "com.apple.Preview" then
+            -- Preview on MacOS
+            wantActive = true
+            activeApp = "Preview"
         end
     elseif platform == "Windows" then
         -- Powerpoint on Windows
