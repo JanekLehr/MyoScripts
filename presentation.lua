@@ -192,12 +192,20 @@ function onForegroundWindowChange(app, title)
             wantActive = true
             activeApp = "Preview"
         end
-    elseif platform == "Windows" then
+    elseif platform == "Windows" then    
         -- Powerpoint on Windows
         wantActive = string.match(title, " %- PowerPoint$") or
                      string.match(title, "^PowerPoint Slide Show %- ") or
                      string.match(title, " %- PowerPoint Presenter View$")
-        activeApp = "Powerpoint"
+        if wantActive then
+            activeApp = "Powerpoint"
+        elseif string.match(title, "%- Adobe Reader$") then
+            wantActive = true
+            activeApp = "Adobe Reader"        
+        elseif string.match(title, "%- OpenOffice Impress$") then
+            wantActive = true
+            activeApp = "OpenOffice Impress"        
+        end
     end
     return wantActive
 end
