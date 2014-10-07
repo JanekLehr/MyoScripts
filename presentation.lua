@@ -38,7 +38,7 @@ function conditionallySwapWave(pose)
 end
 
 -- Makes use of myo.getXDirection() to swap the angle when the armband is being worn with the x-axis
--- facing the elbow. This allows us to use the same sign comparisons when using the angle, not matter
+-- facing the wrist. This allows us to use the same sign comparisons when using the angle, no matter
 -- which way it is being worn.
 function conditionallySwapAngle(angle)
     if myo.getXDirection() == "towardWrist" then
