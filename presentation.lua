@@ -5,16 +5,31 @@ scriptId = 'com.janek.scripts.presentation'
 -- Effects
 
 function forward()
-    myo.keyboard("down_arrow", "press")
+    if useLeftRight then
+        myo.keyboard("right_arrow", "press")
+    else
+        myo.keyboard("down_arrow", "press")
+    end
 end
 
 function backward()
-    myo.keyboard("up_arrow", "press")
+    if useLeftRight then
+        myo.keyboard("left_arrow", "press")
+    else
+        myo.keyboard("up_arrow", "press")
+    end
+end
+
+function space()
+    myo.debug("pressing space")
+    myo.keyboard("space", "press")
 end
 
 -- Burst forward or backward depending on the value of shuttleDirection.
 function shuttleBurst()
-    if shuttleDirection == "forward" then
+    if currentPoseEdge[1] == "fingersSpread" then
+        space()
+    elseif shuttleDirection == "forward" then
         forward()
     elseif shuttleDirection == "backward" then
         backward()
@@ -70,6 +85,7 @@ end
 -- Implement Callbacks
 
 function onPoseEdge(pose, edge)
+    -- myo.debug("pose: " .. pose)
     currentPoseEdge = {pose, edge}
     -- Unlock
     if pose == "thumbToPinky" then
@@ -86,12 +102,13 @@ function onPoseEdge(pose, edge)
     end
 
     -- Forward/backward and shuttle.
-    if pose == "waveIn" or pose == "waveOut" then
+    if pose == "waveIn" or pose == "waveOut" or pose == "fingersSpread" then
         local now = myo.getTimeMilliseconds()
         initialPoseAngle = conditionallySwapAngle(myo.getRoll())
 
         if unlocked and edge == "on" then
             -- Deal with direction and arm.
+
             pose = conditionallySwapWave(pose)
 
             -- Determine direction based on the pose.
@@ -121,7 +138,8 @@ end
 -- All timeouts in milliseconds.
 
 -- Time since last activity before we lock
-UNLOCKED_TIMEOUT = 2200
+-- UNLOCKED_TIMEOUT = 2200
+UNLOCKED_TIMEOUT = 10000
 
 -- Delay when holding wave left/right before switching to shuttle behaviour
 SHUTTLE_CONTINUOUS_TIMEOUT = 600
@@ -134,6 +152,8 @@ SHUTTLE_SPEED_DELTA = 20
 
 -- A global variable used by functions other than onPoseEdge to identify the current pose
 currentPoseEdge = {nil, nil}
+
+useLeftRight = false
 
 function onPeriodic()
     local now = myo.getTimeMilliseconds()
@@ -170,9 +190,11 @@ function onPeriodic()
 end
 
 function onForegroundWindowChange(app, title)
+    -- myo.debug("title: " .. title)
     -- Here we decide if we want to control the new active app.
     local wantActive = false
     activeApp = ""
+    useLeftRight = false
 
     if platform == "MacOS" then
         if app == "com.apple.iWork.Keynote" then
@@ -192,7 +214,7 @@ function onForegroundWindowChange(app, title)
             wantActive = true
             activeApp = "Preview"
         end
-    elseif platform == "Windows" then    
+    elseif platform == "Windows" then
         -- Powerpoint on Windows
         wantActive = string.match(title, " %- PowerPoint$") or
                      string.match(title, "^PowerPoint Slide Show %- ") or
@@ -204,7 +226,15 @@ function onForegroundWindowChange(app, title)
             activeApp = "Adobe Reader"        
         elseif string.match(title, "%- OpenOffice Impress$") then
             wantActive = true
-            activeApp = "OpenOffice Impress"        
+            activeApp = "OpenOffice Impress"
+        elseif string.match(title, "%- Windows Photo Viewer$") then
+            wantActive = true
+            activeApp = "Windows Photo Viewer"
+            useLeftRight = true
+        elseif string.match(title, "Photo Viewer Slide Show") then
+            wantActive = true
+            activeApp = "Photo Viewer Slide Show"
+            useLeftRight = true
         end
     end
     return wantActive
