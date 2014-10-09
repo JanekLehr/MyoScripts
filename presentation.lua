@@ -21,7 +21,6 @@ function backward()
 end
 
 function space()
-    myo.debug("pressing space")
     myo.keyboard("space", "press")
 end
 
